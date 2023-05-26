@@ -1,4 +1,4 @@
-% :- [tests].
+:- [tests].
 
 snake(HintsX, HintsY, Input, Output) :- 
     snake_ends(Input, Ends),
