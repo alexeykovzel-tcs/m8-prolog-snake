@@ -8,13 +8,13 @@ snake(HintsX, HintsY, Input, Output) :-
     draw_path(Path, Input, Output), !.
 
 test_snake(Output) :-
-    HintsX = [2, 4, 1, -1],
-    HintsY = [3, -1, -1, -1],
+    HintsX = [-1, -1, -1, -1],
+    HintsY = [-1,  1,  3,  3],
     snake(HintsX, HintsY, [
-        [-1,  1, -1, -1],
-        [-1, -1, -1, -1],
-        [-1, -1, -1, -1],
-        [-1, -1,  1, -1]
+        [-1,  1, -1, -1],     % [ 0,  1,  2,  0],
+        [-1, -1, -1, -1],     % [ 0,  0,  2,  2],
+        [-1, -1, -1, -1],     % [ 0,  0,  0,  2],
+        [-1, -1,  1, -1]      % [ 0,  0,  1,  2],
         ], Output).
 
 test_modules() :-
@@ -22,7 +22,7 @@ test_modules() :-
     test_draw_path().
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Finding snake head & tail
+% Finding snake head & tail (a.k.a ends)
 
 snake_ends(Grid, Ends) :-
     Goal = (nth0(X, Grid, Row), nth0(Y, Row, 1)),
@@ -53,7 +53,8 @@ draw_path_aux(Path, (X, Y), [[A|As]|Bs], [Cs|Ds], Output) :-
     ; contains(Path, (Y, X)) -> C = 2
     ; C = 0 ),
     NextX is X + 1,
-    draw_path_aux(Path, (NextX, Y), [As|Bs], [[C|Cs]|Ds], Output).
+    draw_path_aux(Path, (NextX, Y), 
+        [As|Bs], [[C|Cs]|Ds], Output).
 
 test_draw_path() :-
     Path = [(0, 1)],
@@ -98,18 +99,25 @@ path(Goal, Goal, _, Path, Path).
 path(Start, Goal, Dim, Path, Output) :- 
     move2d(Start, Move, Dim),
     unique(Move, Path),
+    vicinity(Move, Path, 0, 1),
     path(Move, Goal, Dim, [Move|Path], Output).
 
-% Move diagonally
-move2d((X1, Y1), (X2, Y2), (MaxX, MaxY)) :-
-    move(X1, X2, MaxX),
-    move(Y1, Y2, MaxY).
+vicinity(_, [], Num, Num).
+vicinity(X, [Y|Ys], Num, Output) :-
+    ( surrounds(X, Y) -> Next is Num + 1 ; Next = Num ),
+    vicinity(X, Ys, Next, Output).
 
-% Move horizontally / vertically
+surrounds((X1, Y1), (X2, Y2)) :-
+    (X1 is X2, Y1 is Y2 + 1);   % above
+    (X1 is X2, Y1 is Y2 - 1);   % below
+    (Y1 is Y2, X1 is X2 - 1);   % right
+    (Y1 is Y2, X1 is X2 + 1).   % left
+
+% Move horizontally/vertically
 move2d((X1, Y), (X2, Y), (MaxX, _)) :- move(X1, X2, MaxX).
 move2d((X, Y1), (X, Y2), (_, MaxY)) :- move(Y1, Y2, MaxY).
 
-% Move back / forward
+% Move back/forward
 move(X1, X2, Max) :- X2 is X1 + 1, X2 < Max.
 move(X1, X2, _)   :- X2 is X1 - 1, X2 >= 0.
 
@@ -132,6 +140,3 @@ dimentions([X | Xs], (LenX, LenY)) :-
 
 unique(_, []).
 unique(X, [Y|Ys]) :- X \= Y, unique(X, Ys).
-
-first((X, _), X).
-second((_, X), X).
