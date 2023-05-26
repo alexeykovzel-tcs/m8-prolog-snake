@@ -38,7 +38,7 @@ solvePuzzle(P)
 
 showPuzzle(P)
   :- puzzle(P,RowClues,ColClues,Grid)
-   , print_puzzle(RowClues,ColClues,Grid).
+   , print_puzzle(RowClues,ColClues,Grid), !.
 
 %% Make sure that your solver does not mark correct solutions as incorrect.
 %% These checks should be instant!
