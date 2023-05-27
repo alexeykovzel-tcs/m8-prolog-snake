@@ -82,12 +82,12 @@ test_hints(Path, FixArg, [Expected|Hints], Level) :-
 
 fix_count([], _, _, Count, Count).
 fix_count([Cell|Cells], FixArg, FixVal, Count, Output) :-
-    arg(FixArg, Cell, FixVal),
-    NewCount is Count + 1,
-    fix_count(Cells, FixArg, FixVal, NewCount, Output), !.
-
-fix_count([_|Cells], FixArg, FixVal, Count, Output) :-
-    fix_count(Cells, FixArg, FixVal, Count, Output).
+    ( arg(FixArg, Cell, FixVal) -> 
+        NewCount is Count + 1, 
+        fix_count(Cells, FixArg, FixVal, NewCount, Output)
+    ; 
+        fix_count(Cells, FixArg, FixVal, Count, Output)
+    ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Build a path from head to tail.
@@ -100,11 +100,16 @@ path(Start, Goal, Dim, Path, Output) :-
     move2d(Start, Move, Dim),
     unique(Move, Path),
     vicinity(Move, Path, 0, 1),
+
+    % TODO: Check that move is within constrains.
+    % TODO: Remeber path permutations. 
+
     path(Move, Goal, Dim, [Move|Path], Output).
 
 vicinity(_, [], Num, Num).
 vicinity(X, [Y|Ys], Num, Output) :-
-    ( surrounds(X, Y) -> Next is Num + 1 ; Next = Num ),
+    ( surrounds(X, Y) -> Next is Num + 1 
+    ; Next = Num ),
     vicinity(X, Ys, Next, Output).
 
 surrounds((X1, Y1), (X2, Y2)) :-
