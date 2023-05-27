@@ -83,9 +83,10 @@ test_hints(Path, FixArg, [Expected|Hints], Level) :-
 
 fix_count([], _, _, Count, Count).
 fix_count([Cell|Cells], FixArg, FixVal, Count, Output) :-
-    ( arg(FixArg, Cell, FixVal) -> 
-        NewCount is Count + 1, 
-        fix_count(Cells, FixArg, FixVal, NewCount, Output)
+    ( 
+        arg(FixArg, Cell, FixVal) 
+        -> NewCount is Count + 1
+        , fix_count(Cells, FixArg, FixVal, NewCount, Output)
     ; 
         fix_count(Cells, FixArg, FixVal, Count, Output)
     ).
@@ -96,30 +97,46 @@ fix_count([Cell|Cells], FixArg, FixVal, Count, Output) :-
 random_path([Start, Goal], Dim, Hints, Path)
     :- path(Start, Goal, Dim, Hints, [Start], Path).
 
-path(Goal, Goal, _, _, Path, Path).
 path(Start, Goal, Dim, Hints, Path, Output) :- 
-    move2d(Start, Move, Dim),
+    (   
+        % Goal is located linearly
+        linear(Goal, Start, _)
+        -> Output = [Goal|Path]
+    ;
+        % Goal is located diagonally
+        diagonal(Goal, Start, (DX, DY))
+        -> Start = (X, Y)
+        , SX is X + DX, SY is Y + DY
+        , member((GX, GY), [(SX, Y), (X, SY)])
+        , Output = [Goal,(GX, GY)|Path]
+    ;
+        % Otherwise, ensure that the snake 
+        % does not touch itself
+        move2d(Start, Move, Dim),
+        vicinity(Move, Path, 0, 1),
+        path(Move, Goal, Dim, Hints, [Move|Path], Output)
+    ).
 
-    % TODO: Check that move respects hints.
-    % ...
-
-    % TODO: Check if move is surrounded by the goal. 
-    unique(Move, Path),
-    vicinity(Move, Path, 0, 1),
-
-    path(Move, Goal, Dim, Hints, [Move|Path], Output).
 
 vicinity(_, [], Num, Num).
 vicinity(X, [Y|Ys], Num, Output) :-
-    ( surrounds(X, Y) -> Next is Num + 1 
+    ( linear(X, Y, _) -> Next is Num + 1 
     ; Next = Num ),
     vicinity(X, Ys, Next, Output).
 
-surrounds((X1, Y1), (X2, Y2)) :-
-    (X1 is X2, Y1 is Y2 + 1);   % above
-    (X1 is X2, Y1 is Y2 - 1);   % below
-    (Y1 is Y2, X1 is X2 - 1);   % right
-    (Y1 is Y2, X1 is X2 + 1).   % left
+surrounds(Cell1, Cell2) :-
+    linear(Cell1, Cell2, _), !;
+    diagonal(Cell1, Cell2, _).
+
+linear((X1, Y1), (X2, Y2), (DX, DY)) :-
+    member((DX, DY), [(0, 1), (0, -1), (1, 0), (-1, 0)]),
+    X1 is X2 + DX,
+    Y1 is Y2 + DY, !.
+
+diagonal((X1, Y1), (X2, Y2), (DX, DY)) :-
+    member((DX, DY), [(1, 1), (1, -1), (-1, 1), (-1, -1)]),
+    X1 is X2 + DX,
+    Y1 is Y2 + DY, !.
 
 % Move horizontally/vertically
 move2d((X1, Y), (X2, Y), (MaxX, _)) :- move(X1, X2, MaxX).
@@ -135,16 +152,10 @@ move(X1, X2, _)   :- X2 is X1 - 1, X2 >= 0.
 contains([], _) :- fail.
 contains([X|Xs], Y) :- X == Y; contains(Xs, Y).
 
-len(Xs, Len) :- len_aux(Xs, 0, Len).
-len_aux([], Len, Len).
-len_aux([_|Xs], Len, Output) :-
-    NextLen is Len + 1,
-    len_aux(Xs, NextLen, Output).
-
 dimentions([], (0, 0)).
 dimentions([X | Xs], (LenX, LenY)) :- 
-    len([X|Xs], LenX),
-    len(X, LenY), !.
+    length([X|Xs], LenX),
+    length(X, LenY), !.
 
 unique(_, []).
 unique(X, [Y|Ys]) :- X \= Y, unique(X, Ys).
