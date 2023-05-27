@@ -39,6 +39,14 @@ rate_cell((X, Y), ((HintsX, HintsY), (DimX, DimY)), Tag, Rating) :-
         Rating is ValX * ValY
     ).
 
+free_cells([], 0).
+
+free_cells([X|Xs], Free) :-
+    X == -1, !,
+    free_cells(Xs, FreeAux),
+    Free is FreeAux + 1;
+    free_cells(Xs, Free).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Building grid from path
 
