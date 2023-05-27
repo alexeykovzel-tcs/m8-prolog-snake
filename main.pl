@@ -7,7 +7,7 @@ snake(HintsX, HintsY, Grid, Output) :-
     find_cells(Grid, 2, Body),
     dimentions(Grid, Dim), !,
     build_path(Ends, Dim, Hints, Path),
-    test_path(Path, Input, (Empty, Body), Hints),
+    test_path(Path, (Empty, Body), Hints),
     draw_path(Path, Grid, Output), !.
 
 test_snake() :-
@@ -27,7 +27,7 @@ test_snake() :-
 rate_grid(Grid, Dim, Hints, Ratings) :-
     grid_map((0, 0), rate_cell, (Hints, Dim), Grid, Ratings).
 
-rate_cell((X, Y), (Hints, (DimX, DimY)), Tag, Rating) :-
+rate_cell((X, Y), ((HintsX, HintsY), (DimX, DimY)), Tag, Rating) :-
     nth0(X, HintsX, HintX),
     nth0(Y, HintsY, HintY),
     (   
@@ -39,59 +39,31 @@ rate_cell((X, Y), (Hints, (DimX, DimY)), Tag, Rating) :-
         Rating is ValX * ValY
     ).
 
-grid_map(_, _, _, [], []).
-grid_map((X, Y), Pred, Input, [[]|Bs], [[]|Ds]) :-
-    NextY is Y + 1,
-    grid_map((X, NextY), Pred, Input, Bs, Ds), !.
-
-grid_map((X, Y), Pred, Input, [[A|As]|Bs], [[C|Cs]|Ds]) :-
-    call(Pred, (X, Y), Input, A, C),
-    NextX is X + 1,
-    grid_map((NextX, Y), 
-        Pred, Input, [As|Bs], [Cs|Ds]).
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Building grid from path
 
 draw_path(Path, Input, Output) :-
-    draw_path_aux(Path, (0, 0), Input, [[]], Output), !.    
+    grid_map((0, 0), draw_cell, Path, Input, Output).
 
-draw_path_aux(_, _, [], IR1, Output) :-
-    maplist(reverse, IR1, IR2),
-    reverse(IR2, IR3),
-    exclude(=([]), IR3, Output).
-
-draw_path_aux(Path, (_, Y), [[]|Bs], Ds, Output) :-
-    NextY is Y + 1,
-    draw_path_aux(Path, (0, NextY), Bs, [[]|Ds], Output).
-
-draw_path_aux(Path, (X, Y), [[A|As]|Bs], [Cs|Ds], Output) :-
-    ( A == 1 -> C = 1
-    ; member((Y, X), Path) -> C = 2
-    ; C = 0 ),
-    NextX is X + 1,
-    draw_path_aux(Path, (NextX, Y), 
-        [As|Bs], [[C|Cs]|Ds], Output).
-
-test_draw_path() :-
-    Path = [(0, 1)],
-    Input = [[1, -1, 1], [-1, -1, -1], [-1, -1, -1]],
-    Output = [[1, 2, 1], [0, 0, 0], [0, 0, 0]],
-    draw_path(Path, Input, Output).
+draw_cell((X, Y), Path, A, B) :-
+    A == 1 -> B = 1; 
+    member((Y, X), Path) -> B = 2; 
+    B = 0.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Test that a path matches hints
 
-test_path(Path, Grid, Prefilled, (HintsX, HintsY)) :-
+test_path(Path, Prefilled, (HintsX, HintsY)) :-
     test_hints(Path, 1, HintsX, 0),
     test_hints(Path, 2, HintsY, 0),
     test_prefilled(Path, Prefilled).
 
-% Test that a path respects prefilled cells
+% Test that prefilled cells are respected
 test_prefilled(Path, (Empty, Body)) :-
     maplist([BodyCell]>>(member(BodyCell, Path)), Body),
     maplist([EmptyCell]>>(\+ member(EmptyCell, Path)), Empty).
 
+% Test that hints are respected
 test_hints(_, _, [], _).
 test_hints(Path, FixArg, [-1|Hints], Level) :-
     NextLevel is Level + 1,
@@ -134,27 +106,24 @@ next_move(Start, Goal, Dim, Hints, Path, Output) :-
     ;
         % Otherwise, ensure that the 
         % snake does not eat itself
+        Path = [PrevMove|PathTail],
         move2d(Start, Move, Dim),
-        adjust_hints(Move, Hints, LeftHints),
-        vicinity(Move, Path, 0, 1),
-        next_move(Move, Goal, Dim, LeftHints, [Move|Path], Output)
+        PrevMove \= Move,
+        left_hints(Move, Hints, NewHints),
+        not_collide(Move, PathTail),
+        next_move(Move, Goal, Dim, NewHints, [Move|Path], Output)
     ).
 
-adjust_hints((X, Y), (HintsX, HintsY), (LeftHintsX, LeftHintsY)) :-
-    decrement_at(X, HintsX, LeftHintsX, X2),
-    X2 \= -1, !,
-    decrement_at(X, HintsX, LeftHintsY, Y2),
-    Y2 \= -1, !.
+left_hints((X, Y), (HintsX, HintsY), (NewHintsX, NewHintsY)) :-
+    decrement_at(X, HintsX, NewHintsX, LeftX),
+    LeftX \= -1, !,
+    decrement_at(Y, HintsY, NewHintsY, LeftY),
+    LeftY \= -1, !.
 
-vicinity(_, [], Num, Num).
-vicinity(X, [Y|Ys], Num, Output) :-
-    ( linear(X, Y, _) -> Next is Num + 1 
-    ; Next = Num ),
-    vicinity(X, Ys, Next, Output).
-
-surrounds(Cell1, Cell2) :-
-    linear(Cell1, Cell2, _), !;
-    diagonal(Cell1, Cell2, _).
+not_collide(_, []).
+not_collide(A, [B|Path]) :-
+    \+ linear(A, B, _),
+    not_collide(A, Path).
 
 linear((X1, Y1), (X2, Y2), (DX, DY)) :-
     member((DX, DY), [(0, 1), (0, -1), (1, 0), (-1, 0)]),
@@ -176,6 +145,17 @@ move(X1, X2, _)   :- X2 is X1 - 1, X2 >= 0.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Utilities
+
+grid_map(_, _, _, [], []).
+grid_map((X, Y), Pred, Input, [[]|Bs], [[]|Ds]) :-
+    NextY is Y + 1,
+    grid_map((0, NextY), Pred, Input, Bs, Ds), !.
+
+grid_map((X, Y), Pred, Input, [[A|As]|Bs], [[C|Cs]|Ds]) :-
+    call(Pred, (X, Y), Input, A, C),
+    NextX is X + 1,
+    grid_map((NextX, Y), 
+        Pred, Input, [As|Bs], [Cs|Ds]).
 
 decrement_at(Idx, List, NewList, Val) :-
     length(Before, Idx),
