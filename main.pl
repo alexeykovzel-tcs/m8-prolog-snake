@@ -30,12 +30,16 @@ rate_grid(Grid, Dim, Hints, Ratings) :-
 rate_cell(Grid, (X, Y), (Hints, (DimX, DimY)), Tag, Rating) :-
     nth0(X, HintsX, HintX),
     nth0(Y, HintsY, HintY),
+    get_row(X, Grid, Row),
+    get_column(Y, Grid, Col),
+    free_cells(Row, FreeX),
+    free_cells(Col, FreeY),
     (   
         Tag == 2 -> Rating = 100;   
         Tag == 0 -> Rating = 0;
 
-        (HintX == -1 -> ValX = 3; ValX is HintX / DimX * 10), 
-        (HintY == -1 -> ValY = 3; ValY is HintY / DimY * 10),  
+        (HintX == -1 -> ValX = 3; ValX is HintX / FreeX * 10), 
+        (HintY == -1 -> ValY = 3; ValY is HintY / FreeY * 10),  
         Rating is ValX * ValY
     ).
 
