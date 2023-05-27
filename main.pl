@@ -1,10 +1,11 @@
 :- [tests].
 
 snake(HintsX, HintsY, Input, Output) :- 
+    Hints = (HintsX, HintsY),
     snake_ends(Input, Ends),
     dimentions(Input, Dim),
-    random_path(Ends, Dim, Path),
-    test_path_hints(Path, HintsX, HintsY),
+    random_path(Ends, Dim, Hints, Path),
+    test_path(Path, Hints),
     draw_path(Path, Input, Output), !.
 
 test_snake(Output) :-
@@ -65,7 +66,7 @@ test_draw_path() :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Test that a path matches hints
 
-test_path_hints(Path, HintsX, HintsY) :-
+test_path(Path, (HintsX, HintsY)) :-
     test_hints(Path, 1, HintsX, 0),
     test_hints(Path, 2, HintsY, 0), !.
 
@@ -92,19 +93,21 @@ fix_count([Cell|Cells], FixArg, FixVal, Count, Output) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Build a path from head to tail.
 
-random_path([Start, Goal], Dim, Path)
-    :- path(Start, Goal, Dim, [Start], Path).
+random_path([Start, Goal], Dim, Hints, Path)
+    :- path(Start, Goal, Dim, Hints, [Start], Path).
 
-path(Goal, Goal, _, Path, Path).
-path(Start, Goal, Dim, Path, Output) :- 
+path(Goal, Goal, _, _, Path, Path).
+path(Start, Goal, Dim, Hints, Path, Output) :- 
     move2d(Start, Move, Dim),
+
+    % TODO: Check that move respects hints.
+    % ...
+
+    % TODO: Check if move is surrounded by the goal. 
     unique(Move, Path),
     vicinity(Move, Path, 0, 1),
 
-    % TODO: Check that move is within constrains.
-    % TODO: Remeber path permutations. 
-
-    path(Move, Goal, Dim, [Move|Path], Output).
+    path(Move, Goal, Dim, Hints, [Move|Path], Output).
 
 vicinity(_, [], Num, Num).
 vicinity(X, [Y|Ys], Num, Output) :-
