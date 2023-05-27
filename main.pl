@@ -2,37 +2,24 @@
 
 snake(HintsX, HintsY, Input, Output) :- 
     Hints = (HintsX, HintsY),
-    snake_ends(Input, Ends),
+    find_cells(Input, 0, Empty),
+    find_cells(Input, 1, Ends),
+    find_cells(Input, 2, Body),
     dimentions(Input, Dim),
-    random_path(Ends, Dim, Hints, Path),
-    test_path(Path, Hints),
+    build_path(Ends, Dim, Hints, Path),
+    test_path(Path, Input, (Empty, Body), Hints),
     draw_path(Path, Input, Output), !.
 
-test_snake(Output) :-
+test_snake() :-
     HintsX = [-1, -1, -1, -1],
-    HintsY = [-1,  1,  3,  3],
+    HintsY = [-1,  2, -1,  3],
     snake(HintsX, HintsY, [
-        [-1,  1, -1, -1],     % [ 0,  1,  2,  0],
-        [-1, -1, -1, -1],     % [ 0,  0,  2,  2],
-        [-1, -1, -1, -1],     % [ 0,  0,  0,  2],
+        [-1,  1,  0,  0],     % [ 0,  1,  0,  0],
+        [-1, -1, -1,  2],     % [ 0,  2,  2,  2],
+        [-1, -1, -1,  2],     % [ 0,  0,  0,  2],
         [-1, -1,  1, -1]      % [ 0,  0,  1,  2],
-        ], Output).
-
-test_modules() :-
-    test_snake_ends(),
-    test_draw_path().
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Finding snake head & tail (a.k.a ends)
-
-snake_ends(Grid, Ends) :-
-    Goal = (nth0(X, Grid, Row), nth0(Y, Row, 1)),
-    findall((X, Y), Goal, Ends), !.
-
-test_snake_ends() :-
-    Grid = [[-1, -1, 1], [-1, 1, -1], [-1, -1, -1]],
-    Ends = [(0, 2), (1, 1)],
-    snake_ends(Grid, Ends).
+        ], Output),
+    print_only_grid(Output).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Building grid from path
@@ -51,7 +38,7 @@ draw_path_aux(Path, (_, Y), [[]|Bs], Ds, Output) :-
 
 draw_path_aux(Path, (X, Y), [[A|As]|Bs], [Cs|Ds], Output) :-
     ( A == 1 -> C = 1
-    ; contains(Path, (Y, X)) -> C = 2
+    ; member((Y, X), Path) -> C = 2
     ; C = 0 ),
     NextX is X + 1,
     draw_path_aux(Path, (NextX, Y), 
@@ -66,14 +53,20 @@ test_draw_path() :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Test that a path matches hints
 
-test_path(Path, (HintsX, HintsY)) :-
+test_path(Path, Grid, Prefilled, (HintsX, HintsY)) :-
     test_hints(Path, 1, HintsX, 0),
-    test_hints(Path, 2, HintsY, 0), !.
+    test_hints(Path, 2, HintsY, 0),
+    test_prefilled(Path, Prefilled).
+
+% Test that a path respects prefilled cells
+test_prefilled(Path, (Empty, Body)) :-
+    maplist([BodyCell]>>(member(BodyCell, Path)), Body),
+    maplist([EmptyCell]>>(\+ member(EmptyCell, Path)), Empty).
 
 test_hints(_, _, [], _).
 test_hints(Path, FixArg, [-1|Hints], Level) :-
     NextLevel is Level + 1,
-    test_hints(Path, FixArg, Hints, NextLevel), !.
+    test_hints(Path, FixArg, Hints, NextLevel).
 
 test_hints(Path, FixArg, [Expected|Hints], Level) :-
     fix_count(Path, FixArg, Level, 0, Actual),
@@ -94,10 +87,10 @@ fix_count([Cell|Cells], FixArg, FixVal, Count, Output) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Build a path from head to tail.
 
-random_path([Start, Goal], Dim, Hints, Path)
-    :- path(Start, Goal, Dim, Hints, [Start], Path).
+build_path([Start, Goal], Dim, Hints, Path) :-
+    next_move(Start, Goal, Dim, Hints, [Start], Path).
 
-path(Start, Goal, Dim, Hints, Path, Output) :- 
+next_move(Start, Goal, Dim, Hints, Path, Output) :- 
     (   
         % Goal is located linearly
         linear(Goal, Start, _)
@@ -114,9 +107,8 @@ path(Start, Goal, Dim, Hints, Path, Output) :-
         % does not touch itself
         move2d(Start, Move, Dim),
         vicinity(Move, Path, 0, 1),
-        path(Move, Goal, Dim, Hints, [Move|Path], Output)
+        next_move(Move, Goal, Dim, Hints, [Move|Path], Output)
     ).
-
 
 vicinity(_, [], Num, Num).
 vicinity(X, [Y|Ys], Num, Output) :-
@@ -149,8 +141,20 @@ move(X1, X2, _)   :- X2 is X1 - 1, X2 >= 0.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Utilities
 
-contains([], _) :- fail.
-contains([X|Xs], Y) :- X == Y; contains(Xs, Y).
+traverse(_, [], _).
+traverse((X, Y), [[]|Ys], Pred) :-
+    NextY is Y + 1,
+    traverse((X, NextY), Ys, Pred).
+
+traverse((X, Y), [[A|As]|Bs], Pred) :-
+    call(Pred, A, (X, Y)),
+    NextX is X + 1,
+    traverse((NextX, Y), [As|Bs], Pred).
+
+find_cells(Grid, Tag, Moves) :-    
+    Xs = nth0(X, Grid, Row),
+    Ys = nth0(Y, Row, Tag),
+    findall((X, Y), (Xs, Ys), Moves), !.
 
 dimentions([], (0, 0)).
 dimentions([X | Xs], (LenX, LenY)) :- 
