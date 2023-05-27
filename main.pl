@@ -1,25 +1,54 @@
 :- [tests].
 
-snake(HintsX, HintsY, Input, Output) :- 
+snake(HintsX, HintsY, Grid, Output) :- 
     Hints = (HintsX, HintsY),
-    find_cells(Input, 0, Empty),
-    find_cells(Input, 1, Ends),
-    find_cells(Input, 2, Body),
-    dimentions(Input, Dim),
+    find_cells(Grid, 0, Empty),
+    find_cells(Grid, 1, Ends),
+    find_cells(Grid, 2, Body),
+    dimentions(Grid, Dim), !,
     build_path(Ends, Dim, Hints, Path),
     test_path(Path, Input, (Empty, Body), Hints),
-    draw_path(Path, Input, Output), !.
+    draw_path(Path, Grid, Output), !.
 
 test_snake() :-
     HintsX = [-1, -1, -1, -1],
     HintsY = [-1,  2, -1,  3],
     snake(HintsX, HintsY, [
-        [-1,  1,  0,  0],     % [ 0,  1,  0,  0],
-        [-1, -1, -1,  2],     % [ 0,  2,  2,  2],
+        [-1,  1,  0, -1],     % [ 0,  1,  0,  0],
+        [-1, -1, -1, -1],     % [ 0,  2,  2,  2],
         [-1, -1, -1,  2],     % [ 0,  0,  0,  2],
         [-1, -1,  1, -1]      % [ 0,  0,  1,  2],
         ], Output),
     print_only_grid(Output).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Generate grid for deciding next moves
+
+rate_grid(Grid, Dim, Hints, Ratings) :-
+    grid_map((0, 0), rate_cell, (Hints, Dim), Grid, Ratings).
+
+rate_cell((X, Y), (Hints, (DimX, DimY)), Tag, Rating) :-
+    nth0(X, HintsX, HintX),
+    nth0(Y, HintsY, HintY),
+    (   
+        Tag == 2 -> Rating = 100;   
+        Tag == 0 -> Rating = 0;
+
+        (HintX == -1 -> ValX = 3; ValX is HintX / DimX * 10), 
+        (HintY == -1 -> ValY = 3; ValY is HintY / DimY * 10),  
+        Rating is ValX * ValY
+    ).
+
+grid_map(_, _, _, [], []).
+grid_map((X, Y), Pred, Input, [[]|Bs], [[]|Ds]) :-
+    NextY is Y + 1,
+    grid_map((X, NextY), Pred, Input, Bs, Ds), !.
+
+grid_map((X, Y), Pred, Input, [[A|As]|Bs], [[C|Cs]|Ds]) :-
+    call(Pred, (X, Y), Input, A, C),
+    NextX is X + 1,
+    grid_map((NextX, Y), 
+        Pred, Input, [As|Bs], [Cs|Ds]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Building grid from path
@@ -103,12 +132,19 @@ next_move(Start, Goal, Dim, Hints, Path, Output) :-
         , member((GX, GY), [(SX, Y), (X, SY)])
         , Output = [Goal,(GX, GY)|Path]
     ;
-        % Otherwise, ensure that the snake 
-        % does not touch itself
+        % Otherwise, ensure that the 
+        % snake does not eat itself
         move2d(Start, Move, Dim),
+        adjust_hints(Move, Hints, LeftHints),
         vicinity(Move, Path, 0, 1),
-        next_move(Move, Goal, Dim, Hints, [Move|Path], Output)
+        next_move(Move, Goal, Dim, LeftHints, [Move|Path], Output)
     ).
+
+adjust_hints((X, Y), (HintsX, HintsY), (LeftHintsX, LeftHintsY)) :-
+    decrement_at(X, HintsX, LeftHintsX, X2),
+    X2 \= -1, !,
+    decrement_at(X, HintsX, LeftHintsY, Y2),
+    Y2 \= -1, !.
 
 vicinity(_, [], Num, Num).
 vicinity(X, [Y|Ys], Num, Output) :-
@@ -141,25 +177,21 @@ move(X1, X2, _)   :- X2 is X1 - 1, X2 >= 0.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Utilities
 
-traverse(_, [], _).
-traverse((X, Y), [[]|Ys], Pred) :-
-    NextY is Y + 1,
-    traverse((X, NextY), Ys, Pred).
-
-traverse((X, Y), [[A|As]|Bs], Pred) :-
-    call(Pred, A, (X, Y)),
-    NextX is X + 1,
-    traverse((NextX, Y), [As|Bs], Pred).
+decrement_at(Idx, List, NewList, Val) :-
+    length(Before, Idx),
+    append(Before, [X|After], List),
+    Val is X - 1,
+    append(Before, [Val|After], NewList).
 
 find_cells(Grid, Tag, Moves) :-    
     Xs = nth0(X, Grid, Row),
     Ys = nth0(Y, Row, Tag),
-    findall((X, Y), (Xs, Ys), Moves), !.
+    findall((X, Y), (Xs, Ys), Moves).
 
 dimentions([], (0, 0)).
 dimentions([X | Xs], (LenX, LenY)) :- 
     length([X|Xs], LenX),
-    length(X, LenY), !.
+    length(X, LenY).
 
 unique(_, []).
 unique(X, [Y|Ys]) :- X \= Y, unique(X, Ys).
