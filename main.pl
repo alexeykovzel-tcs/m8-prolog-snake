@@ -50,6 +50,14 @@ grid_map((X, Y), Pred, Input, [[A|As]|Bs], [[C|Cs]|Ds]) :-
     grid_map((NextX, Y), 
         Pred, Input, [As|Bs], [Cs|Ds]).
 
+free_cells([], 0).
+
+free_cells([X|Xs], Free) :-
+    X == -1, !,
+    free_cells(Xs, FreeAux),
+    Free is FreeAux + 1;
+    free_cells(Xs, Free).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Building grid from path
 
