@@ -27,7 +27,7 @@ test_snake() :-
 rate_grid(Grid, Dim, Hints, Ratings) :-
     grid_map((0, 0), rate_cell, (Hints, Dim), Grid, Ratings).
 
-rate_cell((X, Y), (Hints, (DimX, DimY)), Tag, Rating) :-
+rate_cell(Grid, (X, Y), (Hints, (DimX, DimY)), Tag, Rating) :-
     nth0(X, HintsX, HintX),
     nth0(Y, HintsY, HintY),
     (   
@@ -51,12 +51,19 @@ grid_map((X, Y), Pred, Input, [[A|As]|Bs], [[C|Cs]|Ds]) :-
         Pred, Input, [As|Bs], [Cs|Ds]).
 
 free_cells([], 0).
-
 free_cells([X|Xs], Free) :-
     X == -1, !,
     free_cells(Xs, FreeAux),
     Free is FreeAux + 1;
     free_cells(Xs, Free).
+
+get_row(N, Xs, Row) :-
+    nth0(N, Xs, Row).
+
+get_column([], _, []).
+get_column([X|Xs], I, [Y|Ys]) :-
+    nth0(I, X, Y),
+    get_column(Xs, I, Ys).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Building grid from path
