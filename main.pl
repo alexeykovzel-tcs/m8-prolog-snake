@@ -5,9 +5,9 @@ snake(HintsX, HintsY, Grid, Output) :-
     find_cells(Grid, 0, Empty),
     find_cells(Grid, 1, Ends),
     find_cells(Grid, 2, Body),
-    dimentions(Grid, Dim), !,
-    build_path(Ends, Dim, Hints, Path),
-    test_path(Path, Input, (Empty, Body), Hints),
+    move_order_grid(Grid, Hints, MoveOrder), !,
+    build_path(Ends, Hints, MoveOrder, Path),
+    test_path(Path, (Empty, Body), Hints),
     draw_path(Path, Grid, Output), !.
 
 test_puzzle((
@@ -28,21 +28,36 @@ test_snake() :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Generate grid for deciding next moves
 
-test_rate_grid() :-
+test_move_order() :-
     test_puzzle(Hints, Grid),
-    rate_grid(Grid, Hints, Ratings),
+    move_order_grid(Grid, Hints, MoveOrders),
+    write(MoveOrders).
+
+test_rate_cell() :-
+    test_puzzle(Hints, Grid),
+    map2d((0, 0), rate_cell, (Grid, Hints), Grid, Ratings),
     write(Ratings).
 
-move_order_grid(Ratings, MoveOrders) :-
-    grid_map((0, 0), move_order, Ratings, Ratings, MoveOrders).
+move_order_grid(Grid, Hints, MoveOrders) :-
+    map2d((0, 0), rate_cell, (Grid, Hints), Grid, Ratings),
+    map2d((0, 0), move_order, Ratings, Ratings, MoveOrders).
 
-move_order((X, Y), Ratings, Rating, MoveOrder) :-
-    % find_tag((X, Y), Ratings, Rating)
-    % MoveOrder = []
-    true.
+% Order: 1-Right, 2-Up, 3-Left, 4-Down
 
-rate_grid(Grid, Hints, Ratings) :-
-    grid_map((0, 0), rate_cell, (Grid, Hints), Grid, Ratings).
+move_order(Cell, Ratings, _, MoveOrder) :-
+    move_rate( 1, 0, Cell, Ratings, 1, Right),
+    move_rate( 0, 1, Cell, Ratings, 2, Up),
+    move_rate(-1, 0, Cell, Ratings, 3, Left),
+    move_rate( 0,-1, Cell, Ratings, 4, Down),
+    sort([Right, Up, Left, Down], MoveRates),
+    seconds(MoveRates, MoveOrder).
+
+move_rate(DX, DY, (X1, Y1), Ratings, Direction, Rate) :-
+    X2 is X1 + DX,
+    Y2 is Y1 + DY,
+    ( find2d((X2, Y2), Ratings, R) -> Rating = R
+    ; Rating = -100 ),
+    Rate = (Rating, Direction).
 
 rate_cell((X, Y), (Grid, (HintsX, HintsY)), Tag, Rating) :-
     nth0(Y, HintsX, HintX),
@@ -60,16 +75,6 @@ rate_cell((X, Y), (Grid, (HintsX, HintsY)), Tag, Rating) :-
         (HintY == -1 -> ValY = 3; ValY is (HintY / FreeY * 10)),
         Rating is ValX * ValY
     ).
-
-grid_map(_, _, _, [], []).
-grid_map((X, Y), Pred, Input, [[]|Bs], [[]|Ds]) :-
-    NextY is Y + 1,
-    grid_map((0, NextY), Pred, Input, Bs, Ds), !.
-
-grid_map((X, Y), Pred, Input, [[A|As]|Bs], [[C|Cs]|Ds]) :-
-    call(Pred, (X, Y), Input, A, C),
-    NextX is X + 1,
-    grid_map((NextX, Y), Pred, Input, [As|Bs], [Cs|Ds]).
 
 free_cells([], Output, Output).
 free_cells([X|Xs], Free, Output) :-
@@ -108,7 +113,7 @@ test_draw_path() :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Test that a path matches hints
 
-test_path(Path, Grid, Prefilled, (HintsX, HintsY)) :-
+test_path(Path, Prefilled, (HintsX, HintsY)) :-
     test_hints(Path, 1, HintsX, 0),
     test_hints(Path, 2, HintsY, 0),
     test_prefilled(Path, Prefilled).
@@ -142,10 +147,10 @@ fix_count([Cell|Cells], FixArg, FixVal, Count, Output) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Build a path from head to tail.
 
-build_path([Start, Goal], Dim, Hints, Path) :-
-    next_move(Start, Goal, Dim, Hints, [Start], Path).
+build_path([Start, Goal], Hints, MoveOrders, Path) :-
+    next_move(Start, Goal, Hints, MoveOrders, [Start], Path).
 
-next_move(Start, Goal, Dim, Hints, Path, Output) :- 
+next_move(Start, Goal, Hints, MoveOrders, Path, Output) :- 
     (   
         % Goal is located linearly
         linear(Goal, Start, _)
@@ -158,18 +163,21 @@ next_move(Start, Goal, Dim, Hints, Path, Output) :-
         , member((GX, GY), [(SX, Y), (X, SY)])
         , Output = [Goal,(GX, GY)|Path]
     ;
-        % Otherwise, ensure that the 
-        % snake does not eat itself
-        move2d(Start, Move, Dim),
+        % Otherwise, free move
+        find2d(Start, MoveOrders, MoveOrder),
+        write(MoveOrder),
+        member(Direction, MoveOrder),
+        move(Start, Move, Direction),
         adjust_hints(Move, Hints, LeftHints),
         vicinity(Move, Path, 0, 1),
-        next_move(Move, Goal, Dim, LeftHints, [Move|Path], Output)
+        next_move(Move, Goal, LeftHints, 
+            MoveOrders, [Move|Path], Output)
     ).
 
 adjust_hints((X, Y), (HintsX, HintsY), (LeftHintsX, LeftHintsY)) :-
     decrement_at(X, HintsX, LeftHintsX, X2),
     X2 \= -1, !,
-    decrement_at(X, HintsX, LeftHintsY, Y2),
+    decrement_at(Y, HintsY, LeftHintsY, Y2),
     Y2 \= -1, !.
 
 vicinity(_, [], Num, Num).
@@ -192,13 +200,11 @@ diagonal((X1, Y1), (X2, Y2), (DX, DY)) :-
     X1 is X2 + DX,
     Y1 is Y2 + DY, !.
 
-% Move horizontally/vertically
-move2d((X1, Y), (X2, Y), (MaxX, _)) :- move(X1, X2, MaxX).
-move2d((X, Y1), (X, Y2), (_, MaxY)) :- move(Y1, Y2, MaxY).
-
-% Move back/forward
-move(X1, X2, Max) :- X2 is X1 + 1, X2 < Max.
-move(X1, X2, _)   :- X2 is X1 - 1, X2 >= 0.
+% Order: 1-Right, 2-Up, 3-Left, 4-Down
+move((X1, Y), (X2, Y), 1) :- X2 is X1 + 1.
+move((X, Y1), (X, Y2), 2) :- Y2 is Y1 + 1.
+move((X1, Y), (X2, Y), 3) :- X2 is X1 - 1.
+move((X, Y1), (X, Y2), 4) :- Y2 is Y1 - 1.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Utilities
@@ -209,7 +215,7 @@ decrement_at(Idx, List, NewList, Val) :-
     Val is X - 1,
     append(Before, [Val|After], NewList).
 
-find_tag((X, Y), Grid, Tag) :-
+find2d((X, Y), Grid, Tag) :-
     nth0(X, Grid, Row),
     nth0(Y, Row, Tag).
 
@@ -233,3 +239,17 @@ column(_, [], []) :- !.
 column(Idx, [X|Xs], [Y|Ys]) :-
     nth0(Idx, X, Y),
     column(Idx, Xs, Ys).
+
+seconds([], []).
+seconds([(_,A)|Tuples], [A|As]) :-
+    seconds(Tuples, As).
+
+map2d(_, _, _, [], []).
+map2d((_, Y), Pred, Input, [[]|Bs], [[]|Ds]) :-
+    NextY is Y + 1,
+    map2d((0, NextY), Pred, Input, Bs, Ds), !.
+
+map2d((X, Y), Pred, Input, [[A|As]|Bs], [[C|Cs]|Ds]) :-
+    call(Pred, (X, Y), Input, A, C),
+    NextX is X + 1,
+    map2d((NextX, Y), Pred, Input, [As|Bs], [Cs|Ds]).
