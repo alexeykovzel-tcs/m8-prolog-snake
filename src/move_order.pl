@@ -17,7 +17,7 @@ move_order(Cell, Ratings, _, MoveOrder) :-
 move_rate(DX, DY, (X1, Y1), Ratings, Direction, Rate) :-
     X2 is X1 + DX,
     Y2 is Y1 + DY,
-    ( find2d((X2, Y2), Ratings, R) -> Rating = R
+    ( find2d(Ratings, R, (X2, Y2)) -> Rating = R
     ; Rating = -100 ),
     Rate = (Rating, Direction).
 
