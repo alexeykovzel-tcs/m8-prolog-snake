@@ -39,6 +39,19 @@ find2d_all(Grid, Tag, Cells) :-
     Ys = nth0(Y, Row, Tag),
     findall((X, Y), (Xs, Ys), Cells).
 
+print3d(Grid) :- maplist(print3d_row, Grid).
+print3d_row(Row) :- maplist(print3d_item, Row), nl.
+print3d_item(Item) :- write(Item), write(' ').
+
+print2d(Grid) :- maplist(print2d_row, Grid).
+print2d_row(Row) :-
+    maplist(format_item, Row, Rowf),
+    atomic_list_concat(Rowf, ' ', Atom),
+    writeln(Atom).
+
+format_item(Item, Itemf) :-
+    format(atom(Itemf), '~` t~w~5+', [Item]).
+
 % Utils with tuples
 
 count_tuples([], _, _, 0).
