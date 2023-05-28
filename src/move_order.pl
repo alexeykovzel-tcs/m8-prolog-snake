@@ -38,7 +38,7 @@ rate_cell((X, Y), (Grid, (HintsX, HintsY)), Tag, Rating) :-
 
         (HintX == -1 -> ValX = 3; ValX is (HintX / FreeX * 10)), 
         (HintY == -1 -> ValY = 3; ValY is (HintY / FreeY * 10)),
-        Rating is ValX * ValY
+        Rating is round(ValX * ValY)
     ).
 
 % Find the number of cells that don't contain 0

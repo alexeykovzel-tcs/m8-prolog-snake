@@ -50,7 +50,7 @@ print2d_row(Row) :-
     writeln(Atom).
 
 format_item(Item, Itemf) :-
-    format(atom(Itemf), '~` t~w~5+', [Item]).
+    format(atom(Itemf), '~` t~w~4+', [Item]).
 
 % Utils with tuples
 
