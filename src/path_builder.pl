@@ -20,21 +20,22 @@ next_move(Start, Goal, Hints, MoveOrders, Path, Output) :-
         % Otherwise, free move
         find2d(MoveOrders, MoveOrder, Start),
         member(Direction, MoveOrder),
-        move(Start, Move, Direction),
-        decr_hints(Move, Hints, LeftHints),
-        vicinity(Move, Path, 0, 1),
-        next_move(Move, Goal, LeftHints,
-            MoveOrders, [Move|Path], Output)
+        move(Start, Pos, Direction),
+        Path = [_|PathTail],
+        not_collide(Pos, PathTail),
+        decr_hints(Pos, Hints, LeftHints),
+        next_move(Pos, Goal, LeftHints,
+            MoveOrders, [Pos|Path], Output)
     ).
 
 decr_hints((X, Y), (HintsX, HintsY), (LeftHintsX, LeftHintsY)) :-
     decr_at(X, HintsX, LeftHintsX, X2), X2 \= -1, !,
     decr_at(Y, HintsY, LeftHintsY, Y2), Y2 \= -1, !.
 
-vicinity(_, [], Num, Num).
-vicinity(X, [Y|Ys], Num, Output) :-
-    ( linear(X, Y, _) -> Next is Num + 1; Next = Num ),
-    vicinity(X, Ys, Next, Output).
+not_collide(_, []).
+not_collide(Pos, [PrevPos|Path]) :-
+    \+ linear(Pos, PrevPos, _),
+    not_collide(Pos, Path).    
 
 linear((X1, Y1), (X2, Y2), (DX, DY)) :-
     member((DX, DY), [(0, 1), (0, -1), (1, 0), (-1, 0)]),

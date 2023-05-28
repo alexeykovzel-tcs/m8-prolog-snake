@@ -6,10 +6,10 @@
 snake(HintsX, HintsY, Grid, Output) :- 
     Hints = (HintsX, HintsY),
     find2d_all(Grid, 0, Empty),
-    find2d_all(Grid, 1, Ends),
+    find2d_all(Grid, 1, [Head, Tail]),
     find2d_all(Grid, 2, Body),
-    move_order_grid(Grid, Hints, MoveOrder), !,
-    build_path(Ends, Hints, MoveOrder, Path),
+    move_order_grid(Head, Grid, Hints, MoveOrder), !,
+    build_path([Head, Tail], Hints, MoveOrder, Path),
     check_path(Path, (Empty, Body), Hints),
     convert_path(Path, Grid, Output), !.
 
@@ -20,7 +20,8 @@ test_puzzle(Puzzle) :-
     nl, write('hintsY: '), writeln(HintsY),
     nl, writeln('initial grid:'),
     print2d(Grid),
-    map2d((0, 0), rate_cell, (Grid, Hints), Grid, Ratings),
+    find2d_all(Grid, 1, [Head, _]),
+    map2d((0, 0), rate_cell, (Head, Grid, Hints), Grid, Ratings),
     nl, writeln('ratings:'),
     print2d(Ratings),
     map2d((0, 0), smart_order, Ratings, Ratings, MoveOrders),
