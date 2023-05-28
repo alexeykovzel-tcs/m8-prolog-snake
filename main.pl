@@ -10,64 +10,71 @@ snake(HintsX, HintsY, Grid, Output) :-
     test_path(Path, Input, (Empty, Body), Hints),
     draw_path(Path, Grid, Output), !.
 
+test_puzzle((
+    [-1, -1,  2, -1],
+    [-1, -1, -1,  3]
+), [    
+    [-1,  1, -1, -1],     % [ 0,  1,  2,  0],
+    [-1, -1, -1, -1],     % [ 0,  0,  2,  2],
+    [ 1, -1, -1, -1],     % [ 1,  0,  0,  2],
+    [-1, -1,  2, -1]      % [ 2,  2,  2,  2],
+]).
+
 test_snake() :-
-    HintsX = [-1, -1, -1, -1],
-    HintsY = [-1,  2, -1,  3],
-    snake(HintsX, HintsY, [
-        [-1,  1,  0, -1],     % [ 0,  1,  0,  0],
-        [-1, -1, -1, -1],     % [ 0,  2,  2,  2],
-        [-1, -1, -1,  2],     % [ 0,  0,  0,  2],
-        [-1, -1,  1, -1]      % [ 0,  0,  1,  2],
-        ], Output),
+    test_puzzle((HintsX, HintsY), Input),
+    snake(HintsX, HintsY, Input, Output),
     print_only_grid(Output).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Generate grid for deciding next moves
 
-rate_grid(Grid, Dim, Hints, Ratings) :-
-    grid_map((0, 0), rate_cell, (Hints, Dim), Grid, Ratings).
+test_rate_grid() :-
+    test_puzzle(Hints, Grid),
+    rate_grid(Grid, Hints, Ratings),
+    write(Ratings).
 
-rate_cell(Grid, (X, Y), (Hints, (DimX, DimY)), Tag, Rating) :-
-    nth0(X, HintsX, HintX),
-    nth0(Y, HintsY, HintY),
-    get_row(X, Grid, Row),
-    get_column(Y, Grid, Col),
-    free_cells(Row, FreeX),
-    free_cells(Col, FreeY),
+move_order_grid(Ratings, MoveOrders) :-
+    grid_map((0, 0), move_order, Ratings, Ratings, MoveOrders).
+
+move_order((X, Y), Ratings, Rating, MoveOrder) :-
+    % find_tag((X, Y), Ratings, Rating)
+    % MoveOrder = []
+    true.
+
+rate_grid(Grid, Hints, Ratings) :-
+    grid_map((0, 0), rate_cell, (Grid, Hints), Grid, Ratings).
+
+rate_cell((X, Y), (Grid, (HintsX, HintsY)), Tag, Rating) :-
+    nth0(Y, HintsX, HintX),
+    nth0(X, HintsY, HintY),
+    row(X, Grid, Row),
+    column(Y, Grid, Col),
+    free_cells(Row, 0, FreeX),
+    free_cells(Col, 0, FreeY),
     (   
-        Tag == 2 -> Rating = 100;   
+        Tag == 2 -> Rating = 100;
+        Tag == 1 -> Rating = 100;
         Tag == 0 -> Rating = 0;
 
-        (HintX == -1 -> ValX = 3; ValX is HintX / FreeX * 10), 
-        (HintY == -1 -> ValY = 3; ValY is HintY / FreeY * 10),  
+        (HintX == -1 -> ValX = 3; ValX is (HintX / FreeX * 10)), 
+        (HintY == -1 -> ValY = 3; ValY is (HintY / FreeY * 10)),
         Rating is ValX * ValY
     ).
 
 grid_map(_, _, _, [], []).
 grid_map((X, Y), Pred, Input, [[]|Bs], [[]|Ds]) :-
     NextY is Y + 1,
-    grid_map((X, NextY), Pred, Input, Bs, Ds), !.
+    grid_map((0, NextY), Pred, Input, Bs, Ds), !.
 
 grid_map((X, Y), Pred, Input, [[A|As]|Bs], [[C|Cs]|Ds]) :-
     call(Pred, (X, Y), Input, A, C),
     NextX is X + 1,
-    grid_map((NextX, Y), 
-        Pred, Input, [As|Bs], [Cs|Ds]).
+    grid_map((NextX, Y), Pred, Input, [As|Bs], [Cs|Ds]).
 
-free_cells([], 0).
-free_cells([X|Xs], Free) :-
-    X == -1, !,
-    free_cells(Xs, FreeAux),
-    Free is FreeAux + 1;
-    free_cells(Xs, Free).
-
-get_row(N, Xs, Row) :-
-    nth0(N, Xs, Row).
-
-get_column([], _, []).
-get_column([X|Xs], I, [Y|Ys]) :-
-    nth0(I, X, Y),
-    get_column(Xs, I, Ys).
+free_cells([], Output, Output).
+free_cells([X|Xs], Free, Output) :-
+    (X \= 0 -> NextFree = Free + 1; NextFree = Free),
+    free_cells(Xs, NextFree, Output).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Building grid from path
@@ -171,9 +178,9 @@ vicinity(X, [Y|Ys], Num, Output) :-
     ; Next = Num ),
     vicinity(X, Ys, Next, Output).
 
-surrounds(Cell1, Cell2) :-
-    linear(Cell1, Cell2, _), !;
-    diagonal(Cell1, Cell2, _).
+surrounds(A, B) :-
+    linear(A, B, _), !;
+    diagonal(A, B, _).
 
 linear((X1, Y1), (X2, Y2), (DX, DY)) :-
     member((DX, DY), [(0, 1), (0, -1), (1, 0), (-1, 0)]),
@@ -202,6 +209,10 @@ decrement_at(Idx, List, NewList, Val) :-
     Val is X - 1,
     append(Before, [Val|After], NewList).
 
+find_tag((X, Y), Grid, Tag) :-
+    nth0(X, Grid, Row),
+    nth0(Y, Row, Tag).
+
 find_cells(Grid, Tag, Moves) :-    
     Xs = nth0(X, Grid, Row),
     Ys = nth0(Y, Row, Tag),
@@ -214,3 +225,11 @@ dimentions([X | Xs], (LenX, LenY)) :-
 
 unique(_, []).
 unique(X, [Y|Ys]) :- X \= Y, unique(X, Ys).
+
+row(X, Grid, Row) :-
+    nth0(X, Grid, Row), !.
+
+column(_, [], []) :- !.
+column(Idx, [X|Xs], [Y|Ys]) :-
+    nth0(Idx, X, Y),
+    column(Idx, Xs, Ys).
