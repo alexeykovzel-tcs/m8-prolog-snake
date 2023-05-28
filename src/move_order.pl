@@ -2,26 +2,27 @@
 
 % Order: 1-Right, 2-Up, 3-Left, 4-Down
 
-move_order_grid(Grid, Hints, MoveOrders) :-
+move_order_grid(Grid, Hints, Orders) :-
     map2d((0, 0), rate_cell, (Grid, Hints), Grid, Ratings),
-    map2d((0, 0), move_order, Ratings, Ratings, MoveOrders).
+    map2d((0, 0), smart_order, Ratings, Ratings, Orders).
 
-move_order(Cell, Ratings, _, MoveOrder) :-
-    move_rate( 1, 0, Cell, Ratings, 1, Right),
-    move_rate( 0, 1, Cell, Ratings, 2, Up),
-    move_rate(-1, 0, Cell, Ratings, 3, Left),
-    move_rate( 0,-1, Cell, Ratings, 4, Down),
-    sort([Right, Up, Left, Down], MoveRates),
-    seconds(MoveRates, MoveOrder).
+smart_order(Cell, Ratings, _, Order) :-
+    Moves = [(1, 1, 0), (2, 0, -1), (3, -1, 0), (4, 0, 1)],
+    cell_moves(Moves, Cell, Ratings, [], A),
+    sort(A, B), reverse(B, C), seconds(C, Order).
 
-move_rate(DX, DY, (X1, Y1), Ratings, Direction, Rate) :-
-    X2 is X1 + DX,
-    Y2 is Y1 + DY,
-    ( find2d(Ratings, R, (X2, Y2)) -> Rating = R
-    ; Rating = -100 ),
-    Rate = (Rating, Direction).
+cell_moves([], _, _, Output, Output).
+cell_moves([(Direction, DX, DY)|Ds], (X, Y), Ratings, Now, Output) :-
+    RX is X + DX, 
+    RY is Y + DY,
+    (
+        find2d(Ratings, Rating, (RY, RX))
+        -> Next = [(Rating, Direction)|Now]; 
+           Next = Now
+    ),
+    cell_moves(Ds, (X, Y), Ratings, Next, Output).
 
-% Rate a cell from 0 to 100, where the higher the number, 
+% Rate a cell from 0 to 100, where the higher the number, rate_move
 % the higher the probability the snake will go there
 rate_cell((X, Y), (Grid, (HintsX, HintsY)), Tag, Rating) :-
     nth0(Y, HintsX, HintX),

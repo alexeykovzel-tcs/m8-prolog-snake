@@ -7,16 +7,16 @@ decr_at(Idx, List, NewList, NewVal) :-
 
 % Utils with grids
 
-row(X, Grid, Row) :-
+column(X, Grid, Row) :-
     nth0(X, Grid, Row), !.
 
-column(_, [], []) :- !.
-column(Idx, [X|Xs], [Y|Ys]) :-
+row(_, [], []) :- !.
+row(Idx, [X|Xs], [Y|Ys]) :-
     nth0(Idx, X, Y),
-    column(Idx, Xs, Ys).
+    row(Idx, Xs, Ys).
 
 len2d([], (0, 0)).
-len2d([X | Xs], (LenX, LenY)) :- 
+len2d([X|Xs], (LenX, LenY)) :- 
     length([X|Xs], LenX),
     length(X, LenY).
 

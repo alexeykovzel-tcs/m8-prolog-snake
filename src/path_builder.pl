@@ -1,10 +1,10 @@
 :- [utils].
 
 % Building a path given hints and move orders
-build_path([Start, Goal], Dim, Hints, MoveOrders, Path) :-
-    next_move(Start, Goal, Dim, Hints, MoveOrders, [Start], Path).
+build_path([Start, Goal], Hints, MoveOrders, Path) :-
+    next_move(Start, Goal, Hints, MoveOrders, [Start], Path).
 
-next_move(Start, Goal, Dim, Hints, MoveOrders, Path, Output) :- 
+next_move(Start, Goal, Hints, MoveOrders, Path, Output) :- 
     (   
         % Goal is located linearly
         linear(Goal, Start, _)
@@ -20,10 +20,10 @@ next_move(Start, Goal, Dim, Hints, MoveOrders, Path, Output) :-
         % Otherwise, free move
         find2d(MoveOrders, MoveOrder, Start),
         member(Direction, MoveOrder),
-        move(Start, Move, Dim, Direction),
+        move(Start, Move, Direction),
         decr_hints(Move, Hints, LeftHints),
         vicinity(Move, Path, 0, 1),
-        next_move(Move, Goal, Dim, LeftHints,
+        next_move(Move, Goal, LeftHints,
             MoveOrders, [Move|Path], Output)
     ).
 
@@ -47,13 +47,10 @@ diagonal((X1, Y1), (X2, Y2), (DX, DY)) :-
     Y1 is Y2 + DY, !.
 
 % Order: 1-Right, 2-Up, 3-Left, 4-Down
-move((X1, Y), (X2, Y), (MaxX, _), 1) :- movef(X1, X2, MaxX).
-move((X, Y1), (X, Y2), (_, MaxY), 2) :- movef(Y1, Y2, MaxY).
-move((X1, Y), (X2, Y), (_, _), 3) :- moveb(X1, X2).
-move((X, Y1), (X, Y2), (_, _), 4) :- moveb(Y1, Y2).
-
-movef(X1, X2, Max) :- X2 is X1 + 1, X2 < Max.
-moveb(X1, X2)      :- X2 is X1 - 1, X2 >= 0.
+move((X, Y1), (X, Y2), 1) :- Y2 is Y1 + 1.
+move((X1, Y), (X2, Y), 2) :- X2 is X1 - 1.
+move((X1, Y), (X2, Y), 4) :- X2 is X1 + 1.
+move((X, Y1), (X, Y2), 3) :- Y2 is Y1 - 1.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Check if path respects hints and prefilled values
