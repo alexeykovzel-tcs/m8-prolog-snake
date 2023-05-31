@@ -2,9 +2,13 @@
 
 % Building a path given hints and move orders
 build_path([Start, Goal], Hints, Dim, MoveOrders, Path) :-
-    next_move(Start, Goal, Hints, Dim, MoveOrders, [Start], Path).
+    Start = (X, Y),
+    decr_hints(Start, Hints, StartHints),
+    next_move(Start, Goal, StartHints, Dim, MoveOrders, 
+        (X, X, Y, Y), [Start], Path).
 
-next_move(Start, Goal, Hints, Dim, MoveOrders, Path, Output) :- 
+next_move(Start, Goal, Hints, Dim, 
+        MoveOrders, Bounds, Path, Output) :- 
     (   
         % Goal is located linearly
         linear(Goal, Start, _)
@@ -23,34 +27,73 @@ next_move(Start, Goal, Hints, Dim, MoveOrders, Path, Output) :-
         move(Start, Pos, Dir),
         Path = [_|PathTail],
         not_collide(Pos, PathTail),
-        check_hints(Start, Path, Dim, Dir, Hints),
+        update_bounds(Pos, Dir, Bounds, NewBounds),
+        check_hints(Dir, Start, Goal, Hints, Bounds, Dim),
         decr_hints(Pos, Hints, LeftHints),
         next_move(Pos, Goal, LeftHints, Dim,
-            MoveOrders, [Pos|Path], Output)
+            MoveOrders, NewBounds, [Pos|Path], Output)
     ).
 
-% --------------------------------------------------
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Order: 1-Right, 2-Up, 3-Left, 4-Down
 
-check_hints((X, Y), Path, Dim, Dir, (HintsX, HintsY)) :-
-    tail_hints_x(Dir, X, HintsX) -> has_space_x(Path, Dim);
-    tail_hints_y(Dir, Y, HintsY) -> has_space_y(Path, Dim);
+update_bounds((X, Y), Dir, (MinX, MaxX, MinY, MaxY), NewBounds) :- 
+    Dir == 1 -> NewMaxY is max(Y, MaxY), NewBounds = (MinX, MaxX, MinY, NewMaxY);
+    Dir == 2 -> NewMinX is min(X, MinX), NewBounds = (NewMinX, MaxX, MinY, MaxY);
+    Dir == 3 -> NewMinY is min(Y, MinY), NewBounds = (MinX, MaxX, NewMinY, MaxY);
+    Dir == 4 -> NewMaxX is max(X, MaxX), NewBounds = (MinX, NewMaxX, MinY, MaxY).
+
+test_free_space() :-
+    Dir = 4,
+    Pos = (2, 3),
+    Goal = (2, 0), 
+    Hints = (
+        [-1, -1,  1, -1], 
+        [-1, -1, -1,  1]
+    ),
+    Bounds = (0, 2, 1, 3),
+    Dim = (4, 4),
+    check_hints(Dir, Pos, Goal, Hints, Bounds, Dim).
+
+check_hints(Dir, (X, Y), Goal, (HintsX, HintsY), Bounds, Dim) :-
+    behind_hint_x(Dir, Goal, X, HintsX) -> has_space_x(Bounds, Dim);
+    behind_hint_y(Dir, Goal, Y, HintsY) -> has_space_y(Bounds, Dim);
     true.
 
-tail_hints_x(Dir, X, HintsX) :-
-    (Dir == 2, has_after(X, HintsX)); 
-    (Dir == 4, has_before(X, HintsX)).
+has_space_x((MinX, MaxX, MinY, MaxY), (_, DimY)) :-
+    DimDiff is DimY - MaxY,
+    (MinY >= 4; DimDiff >= 5
+    % ; (MinY >= 2, DimDiff >= 3)
+    ).
 
-tail_hints_y(Dir, Y, HintsY) :-
-    (Dir == 1, has_after(Y, HintsY)); 
-    (Dir == 3, has_before(Y, HintsY)).
+has_space_y((MinX, MaxX, MinY, MaxY), (DimX, _)) :- 
+    DimDiff is DimX - MaxX,
+    (MinX >= 4; DimDiff >= 5
+    % ; (MinX >= 2, DimDiff >= 3)
+    ).
 
-has_space_x(Path, Dim) :- true.
-has_space_y(Path, Dim) :- true.
+behind_hint_x(Dir, (GX, _), X, HintsX) :-
+    (Dir == 2, GX < X, left_after(X, HintsX), !); 
+    (Dir == 4, GX > X, left_before(X, HintsX)).
 
-has_after(A, [B|Bs]) :- true.
-has_before(A, [B|Bs]) :- true.
+behind_hint_y(Dir, (_, GY), Y, HintsY) :-
+    (Dir == 3, GY < Y, left_after(Y, HintsY), !); 
+    (Dir == 1, GY > Y, left_before(Y, HintsY)).
 
-% --------------------------------------------------
+left_after(0, [A|As]) :- 
+    !, A > 0 ; left_after(0, As).
+
+left_after(X, [_|As]) :- 
+    NextX is X - 1,
+    left_after(NextX, As).
+
+left_before(X, [A|As]) :- 
+    A > 0, ! 
+    ; X \= 0, 
+      NextX is X - 1, 
+      left_before(NextX, As).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 decr_hints((X, Y), (HintsX, HintsY), (LeftHintsX, LeftHintsY)) :-
     decr_at(X, HintsX, LeftHintsX, X2), X2 \= -1, !,
@@ -79,6 +122,7 @@ move((X, Y1), (X, Y2), 3) :- Y2 is Y1 - 1.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Check if path respects hints and prefilled values
+
 check_path(Path, Prefilled, (HintsX, HintsY)) :-
     check_hints(Path, 1, HintsX, 0),
     check_hints(Path, 2, HintsY, 0),
@@ -96,6 +140,7 @@ check_hints(Path, Axis, [Hint|Hints], Level) :-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Convert path to a grid
+
 convert_path(Path, Input, Output) :-
     map2d((0, 0), convert_cell, Path, Input, Output).
 

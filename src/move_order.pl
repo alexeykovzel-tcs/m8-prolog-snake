@@ -9,23 +9,24 @@ move_order_grid(Head, Grid, Hints, Orders) :-
 % Rate a cell from 0 to 100, where the higher the number, rate_move
 % the higher the probability the snake will go there
 rate_cell(Cell, (Head, Grid, (HintsX, HintsY)), Tag, Rating) :-
-    Cell = (X, Y),
-    nth0(Y, HintsX, HintX),
-    nth0(X, HintsY, HintY),
-    row(X, Grid, Row),
-    column(Y, Grid, Col),
-    free_cells(Row, 0, FreeX),
-    free_cells(Col, 0, FreeY),
-    (   
-        Head == Cell -> Rating = 0;
-        Tag == 2 -> Rating = 100;
-        Tag == 1 -> Rating = 200;
-        Tag == 0 -> Rating = 0;
+    Rating = 0.
+    % Cell = (X, Y),
+    % nth0(Y, HintsX, HintX),
+    % nth0(X, HintsY, HintY),
+    % row(X, Grid, Row),
+    % column(Y, Grid, Col),
+    % free_cells(Row, 0, FreeX),
+    % free_cells(Col, 0, FreeY),
+    % (   
+    %     Head == Cell -> Rating = 0;
+    %     Tag == 2 -> Rating = 100;
+    %     Tag == 1 -> Rating = 200;
+    %     Tag == 0 -> Rating = 0;
 
-        (HintX == -1 -> ValX = 2; ValX is (HintX / FreeX * 10)), 
-        (HintY == -1 -> ValY = 2; ValY is (HintY / FreeY * 10)),
-        Rating is round(ValX * ValY)
-    ).
+    %     (HintX == -1 -> ValX = 2; ValX is (HintX / FreeX * 10)), 
+    %     (HintY == -1 -> ValY = 2; ValY is (HintY / FreeY * 10)),
+    %     Rating is round(ValX * ValY)
+    % ).
 
 free_cells([], Output, Output).
 free_cells([X|Xs], Free, Output) :-
