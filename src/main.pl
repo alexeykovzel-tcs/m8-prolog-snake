@@ -8,10 +8,13 @@ snake(HintsX, HintsY, Grid, Output) :-
     find2d_all(Grid, 0, Empty),
     find2d_all(Grid, 1, [Head, Tail]),
     find2d_all(Grid, 2, Body),
-    move_order_grid(Head, Grid, Hints, MoveOrder), !,
-    build_path([Head, Tail], Hints, MoveOrder, Path),
+    move_order_grid(Head, Grid, Hints, MoveOrder),
+    len2d(Grid, Dim), 
+    !,
+    build_path([Head, Tail], Hints, Dim, MoveOrder, Path),
     check_path(Path, (Empty, Body), Hints),
-    convert_path(Path, Grid, Output), !.
+    !,
+    convert_path(Path, Grid, Output).
 
 test_puzzle(Puzzle) :-
     puzzle(Puzzle, HintsX, HintsY, Grid),

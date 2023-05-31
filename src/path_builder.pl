@@ -1,10 +1,10 @@
 :- [utils].
 
 % Building a path given hints and move orders
-build_path([Start, Goal], Hints, MoveOrders, Path) :-
-    next_move(Start, Goal, Hints, MoveOrders, [Start], Path).
+build_path([Start, Goal], Hints, Dim, MoveOrders, Path) :-
+    next_move(Start, Goal, Hints, Dim, MoveOrders, [Start], Path).
 
-next_move(Start, Goal, Hints, MoveOrders, Path, Output) :- 
+next_move(Start, Goal, Hints, Dim, MoveOrders, Path, Output) :- 
     (   
         % Goal is located linearly
         linear(Goal, Start, _)
@@ -19,14 +19,38 @@ next_move(Start, Goal, Hints, MoveOrders, Path, Output) :-
     ;
         % Otherwise, free move
         find2d(MoveOrders, MoveOrder, Start),
-        member(Direction, MoveOrder),
-        move(Start, Pos, Direction),
+        member(Dir, MoveOrder),
+        move(Start, Pos, Dir),
         Path = [_|PathTail],
         not_collide(Pos, PathTail),
+        check_hints(Start, Path, Dim, Dir, Hints),
         decr_hints(Pos, Hints, LeftHints),
-        next_move(Pos, Goal, LeftHints,
+        next_move(Pos, Goal, LeftHints, Dim,
             MoveOrders, [Pos|Path], Output)
     ).
+
+% --------------------------------------------------
+
+check_hints((X, Y), Path, Dim, Dir, (HintsX, HintsY)) :-
+    tail_hints_x(Dir, X, HintsX) -> has_space_x(Path, Dim);
+    tail_hints_y(Dir, Y, HintsY) -> has_space_y(Path, Dim);
+    true.
+
+tail_hints_x(Dir, X, HintsX) :-
+    (Dir == 2, has_after(X, HintsX)); 
+    (Dir == 4, has_before(X, HintsX)).
+
+tail_hints_y(Dir, Y, HintsY) :-
+    (Dir == 1, has_after(Y, HintsY)); 
+    (Dir == 3, has_before(Y, HintsY)).
+
+has_space_x(Path, Dim) :- true.
+has_space_y(Path, Dim) :- true.
+
+has_after(A, [B|Bs]) :- true.
+has_before(A, [B|Bs]) :- true.
+
+% --------------------------------------------------
 
 decr_hints((X, Y), (HintsX, HintsY), (LeftHintsX, LeftHintsY)) :-
     decr_at(X, HintsX, LeftHintsX, X2), X2 \= -1, !,
